@@ -25,4 +25,8 @@ private:
     std::vector<double> _map_waypoints_dy;
     std::vector<double> _next_x_vals;
     std::vector<double> _next_y_vals;
+    int _lane;
+    int _lane_change_wp;
+    double _ref_vel;
+
 };
