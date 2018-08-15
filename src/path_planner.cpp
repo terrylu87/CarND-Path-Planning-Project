@@ -50,9 +50,41 @@ void PathPlanner::processMessage(string msg)
         double end_path_d = j[1]["end_path_d"];
 
         // Sensor Fusion Data, a list of all other cars on the same side of the road.
+        // [ id, x, y, vx, vy, s, d]
         auto sensor_fusion = j[1]["sensor_fusion"];
 
         int prev_size = previous_path_x.size();
+
+        if(prev_size > 0){
+            car_s = end_path_s;
+        }
+
+        bool too_close = false;
+        // find _rev_v to use
+        for(i=0;i<sensor_fusion.size();++i)
+        {
+            // car is in my lane
+            float d = sensor_fusion[i][6];
+            if(d<(2+4*_lane+2) && d>(2+4*_lane-2))
+            {
+                double vx = sensor_fusion[i][3];
+                double vy = sensor_fusion[i][4];
+                double check_speed = sqrt(vx*vx+vy*vy);
+                double check_car_s = sensor_fusion[i][5];
+
+                // if using previous points can project a value outwards in time
+                check_car_s += (double)prev_size*0.02*check_speed;
+
+                // check s value greater than mine and s gap
+                if(check_car_s > car_s && (check_car_s - car_s) < 30){
+                    // todo
+                    // too close to us
+                    // cout << check_speed;
+                    _ref_vel = check_speed * 3600 / 1609;
+                }
+
+            }
+        }
 
         vector<double> ptsx;
         vector<double> ptsy;
@@ -80,7 +112,7 @@ void PathPlanner::processMessage(string msg)
             ptsy.push_back(ref_y_prev);
             ptsy.push_back(ref_y);
         }
-        cout << _map_waypoints_s.size() << endl;
+
         vector<double> next_wp0 = getXY(car_s+30,(2+4*_lane),
                                         _map_waypoints_s,_map_waypoints_x,_map_waypoints_y);
         vector<double> next_wp1 = getXY(car_s+60,(2+4*_lane),
