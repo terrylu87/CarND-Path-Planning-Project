@@ -5,7 +5,7 @@
 using namespace std;
 using json = nlohmann::json;
 
-const double SAFE_DISTANCE = 5;
+const double SAFE_DISTANCE = 8;
 const double FRONT_DISTANCE = 15;
 
 void PathPlanner::setMap(vector<double> map_waypoints_x,
@@ -124,13 +124,14 @@ void PathPlanner::processMessage(string msg)
                 double check_speed = sqrt(vx*vx+vy*vy);
                 double check_car_s = sensor_fusion[i][5];
 
-                if((check_car_s > car_s) && (lane_speed[0] > check_speed)){
+                check_car_s += (double)prev_size*0.02*check_speed;
+
+                if(fabs(car_s - check_car_s) < SAFE_DISTANCE*2
+                   && (lane_speed[0] > check_speed)){
                     lane_speed[0] = check_speed;
                 }
 
-                check_car_s += (double)prev_size*0.02*check_speed;
 
-                //if(check_car_s < car_s && (car_s - check_car_s) < SAFE_DISTANCE){
                 if(fabs(car_s - check_car_s) < SAFE_DISTANCE){
                     left_lane_safe = false;
                 }
@@ -141,13 +142,14 @@ void PathPlanner::processMessage(string msg)
                 double check_speed = sqrt(vx*vx+vy*vy);
                 double check_car_s = sensor_fusion[i][5];
 
-                if((check_car_s > car_s) && (lane_speed[2] > check_speed)){
+                check_car_s += (double)prev_size*0.02*check_speed;
+
+                if(fabs(car_s - check_car_s) < SAFE_DISTANCE*2
+                   && (lane_speed[2] > check_speed)){
                     lane_speed[2] = check_speed;
                 }
 
-                check_car_s += (double)prev_size*0.02*check_speed;
 
-                //if(check_car_s < car_s && (car_s - check_car_s) < SAFE_DISTANCE){
                 if(fabs(car_s - check_car_s) < SAFE_DISTANCE){
                     right_lane_safe = false;
                 }
@@ -204,22 +206,22 @@ void PathPlanner::processMessage(string msg)
             }
         }
         //if(current_state != _state){
-        //    cout << "++++++++++++++++++++++++++++++" << endl;
-        //    cout << "current lane : " << current_lane << endl;
-        //    cout << "state == " << current_state << " ;    ";
-        //    cout << "next state == " << _state << endl;
-        //    cout << "slow vehicle infront : " << slow_vehicle_in_front << endl;
-        //    cout << "left lane safe : " << left_lane_safe << endl;
-        //    cout << "right lane safe : " << right_lane_safe << endl;
-        //    cout << "next lane : " << _lane << endl;
-        //    cout << "_change_lane_complete : " << _change_lane_complete << endl;
+            cout << "++++++++++++++++++++++++++++++" << endl;
+            cout << "current lane : " << current_lane << endl;
+            cout << "state == " << current_state << " ;    ";
+            cout << "next state == " << _state << endl;
+            cout << "slow vehicle infront : " << slow_vehicle_in_front << endl;
+            cout << "left lane safe : " << left_lane_safe << endl;
+            cout << "right lane safe : " << right_lane_safe << endl;
+            cout << "next lane : " << _lane << endl;
+            cout << "_change_lane_complete : " << _change_lane_complete << endl;
 
-        //    cout << "lane speed left : " << lane_speed[0] << endl;
-        //    cout << "lane speed current: " << lane_speed[1] << endl;
-        //    cout << "lane speed right: " << lane_speed[2] << endl;
+            cout << "lane speed left : " << lane_speed[0] << endl;
+            cout << "lane speed current: " << lane_speed[1] << endl;
+            cout << "lane speed right: " << lane_speed[2] << endl;
 
-        //    cout<< "-----------------------------------------" << endl;
-        //}
+            cout<< "-----------------------------------------" << endl;
+            //}
 
         // take actions based on state change
 
