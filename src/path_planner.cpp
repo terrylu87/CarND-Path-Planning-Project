@@ -64,7 +64,6 @@ void PathPlanner::processMessage(string msg)
             car_s = end_path_s;
         }
 
-        bool too_close = false;
         bool slow_vehicle_in_front = false;
         bool left_lane_safe = true;
         bool right_lane_safe = true;
@@ -104,15 +103,7 @@ void PathPlanner::processMessage(string msg)
 
                 // check s value greater than mine and s gap
                 if(check_car_s > car_s && (check_car_s - car_s) < FRONT_DISTANCE){
-                    // todo
-                    // too close to us
-                    // cout << check_speed;
-                    // _ref_vel = check_speed * 3600 / 1609;
-                    // too_close = true;
                     slow_vehicle_in_front = true;
-                    //if(_lane > 0){
-                    //    _lane = 0;
-                    //}
                     if(lane_speed[1] > check_speed){
                         lane_speed[1] = check_speed;
                     }
@@ -206,21 +197,21 @@ void PathPlanner::processMessage(string msg)
             }
         }
         //if(current_state != _state){
-            cout << "++++++++++++++++++++++++++++++" << endl;
-            cout << "current lane : " << current_lane << endl;
-            cout << "state == " << current_state << " ;    ";
-            cout << "next state == " << _state << endl;
-            cout << "slow vehicle infront : " << slow_vehicle_in_front << endl;
-            cout << "left lane safe : " << left_lane_safe << endl;
-            cout << "right lane safe : " << right_lane_safe << endl;
-            cout << "next lane : " << _lane << endl;
-            cout << "_change_lane_complete : " << _change_lane_complete << endl;
+        //    cout << "++++++++++++++++++++++++++++++" << endl;
+        //    cout << "current lane : " << current_lane << endl;
+        //    cout << "state == " << current_state << " ;    ";
+        //    cout << "next state == " << _state << endl;
+        //    cout << "slow vehicle infront : " << slow_vehicle_in_front << endl;
+        //    cout << "left lane safe : " << left_lane_safe << endl;
+        //    cout << "right lane safe : " << right_lane_safe << endl;
+        //    cout << "next lane : " << _lane << endl;
+        //    cout << "_change_lane_complete : " << _change_lane_complete << endl;
 
-            cout << "lane speed left : " << lane_speed[0] << endl;
-            cout << "lane speed current: " << lane_speed[1] << endl;
-            cout << "lane speed right: " << lane_speed[2] << endl;
+        //    cout << "lane speed left : " << lane_speed[0] << endl;
+        //    cout << "lane speed current: " << lane_speed[1] << endl;
+        //    cout << "lane speed right: " << lane_speed[2] << endl;
 
-            cout<< "-----------------------------------------" << endl;
+        //    cout<< "-----------------------------------------" << endl;
             //}
 
         // take actions based on state change
@@ -232,11 +223,6 @@ void PathPlanner::processMessage(string msg)
             //_ref_vel -= .224;
             _ref_vel -= .448;
         }
-        //if(too_close){
-        //    _ref_vel -= .224;
-        //}else if(_ref_vel < 49.5){
-        //    _ref_vel += .224;
-        //}
 
         vector<double> ptsx;
         vector<double> ptsy;
