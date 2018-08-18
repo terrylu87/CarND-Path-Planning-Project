@@ -5,6 +5,9 @@
 using namespace std;
 using json = nlohmann::json;
 
+const double SAFE_DISTANCE = 5;
+const double FRONT_DISTANCE = 15;
+
 void PathPlanner::setMap(vector<double> map_waypoints_x,
                          vector<double> map_waypoints_y,
                          vector<double> map_waypoints_s,
@@ -20,8 +23,10 @@ void PathPlanner::setMap(vector<double> map_waypoints_x,
 
     _lane = 1;
 
-    _lane_change_wp = 0;
-    _ref_vel = 49.5; //mph
+    _ref_vel = 0; //mph
+    _target_vel = 49.5;
+
+    _state = PathPlanner::FOLLOW_IN_LANE;
 }
 
 void PathPlanner::processMessage(string msg)
@@ -60,11 +65,33 @@ void PathPlanner::processMessage(string msg)
         }
 
         bool too_close = false;
-        // find _rev_v to use
+        bool slow_vehicle_in_front = false;
+        bool left_lane_safe = true;
+        bool right_lane_safe = true;
+        // -1 for left lane, 0 for current lane, 1 for right lane
+        int fastest_lane = 0;
+        //bool change_lane_complete = false;
+
+        double lane_speed[3] = {999,999,999};
+        // prediction based on fusion data
+
+        if(car_d<(2+4*_lane+1) && car_d>(2+4*_lane-1)){
+            _change_lane_complete = true;
+        }
+
+        if(_lane == 0){
+            left_lane_safe = false;
+            lane_speed[0] = 0;
+        }
+        if(_lane == 2){
+            right_lane_safe = false;
+            lane_speed[2] = 0;
+        }
+
         for(i=0;i<sensor_fusion.size();++i)
         {
-            // car is in my lane
             float d = sensor_fusion[i][6];
+            // car is in my lane
             if(d<(2+4*_lane+2) && d>(2+4*_lane-2))
             {
                 double vx = sensor_fusion[i][3];
@@ -76,15 +103,138 @@ void PathPlanner::processMessage(string msg)
                 check_car_s += (double)prev_size*0.02*check_speed;
 
                 // check s value greater than mine and s gap
-                if(check_car_s > car_s && (check_car_s - car_s) < 30){
+                if(check_car_s > car_s && (check_car_s - car_s) < FRONT_DISTANCE){
                     // todo
                     // too close to us
                     // cout << check_speed;
-                    _ref_vel = check_speed * 3600 / 1609;
+                    // _ref_vel = check_speed * 3600 / 1609;
+                    // too_close = true;
+                    slow_vehicle_in_front = true;
+                    //if(_lane > 0){
+                    //    _lane = 0;
+                    //}
+                    if(lane_speed[1] > check_speed){
+                        lane_speed[1] = check_speed;
+                    }
+                }
+            // check left lane
+            }else if(_lane != 0 &&d<(2+4*(_lane-1)+2) && d>(2+4*(_lane-1)-2)){
+                double vx = sensor_fusion[i][3];
+                double vy = sensor_fusion[i][4];
+                double check_speed = sqrt(vx*vx+vy*vy);
+                double check_car_s = sensor_fusion[i][5];
+
+                if((check_car_s > car_s) && (lane_speed[0] > check_speed)){
+                    lane_speed[0] = check_speed;
                 }
 
+                check_car_s += (double)prev_size*0.02*check_speed;
+
+                //if(check_car_s < car_s && (car_s - check_car_s) < SAFE_DISTANCE){
+                if(fabs(car_s - check_car_s) < SAFE_DISTANCE){
+                    left_lane_safe = false;
+                }
+            // check right lane
+            }else if(_lane != 2 &&d<(2+4*(_lane+1)+2) && d>(2+4*(_lane+1)-2)){
+                double vx = sensor_fusion[i][3];
+                double vy = sensor_fusion[i][4];
+                double check_speed = sqrt(vx*vx+vy*vy);
+                double check_car_s = sensor_fusion[i][5];
+
+                if((check_car_s > car_s) && (lane_speed[2] > check_speed)){
+                    lane_speed[2] = check_speed;
+                }
+
+                check_car_s += (double)prev_size*0.02*check_speed;
+
+                //if(check_car_s < car_s && (car_s - check_car_s) < SAFE_DISTANCE){
+                if(fabs(car_s - check_car_s) < SAFE_DISTANCE){
+                    right_lane_safe = false;
+                }
             }
         }
+
+        fastest_lane = 1;
+        for(i=0;i<3;++i)
+        {
+            if(lane_speed[i]>lane_speed[fastest_lane]){
+                fastest_lane = i;
+            }
+        }
+
+        for(i=0;i<3;++i)
+        {
+            if(lane_speed[i] == 999){
+                lane_speed[i] = 49.5;
+            }
+        }
+
+        // change state based on the signals provided by prediction
+        int current_state = _state;
+        int current_lane = _lane;
+
+        if(_state == PathPlanner::FOLLOW_IN_LANE){
+            if(slow_vehicle_in_front){
+                _target_vel = lane_speed[1] * 3600 / 1609;
+                if(fastest_lane != 1){
+                    _state = PathPlanner::PREPARE_LANE_CHANGE;
+                }
+            }
+        }else if(_state == PathPlanner::PREPARE_LANE_CHANGE){
+            _target_vel = lane_speed[1] * 3600 / 1609;
+            if(fastest_lane == 0){
+                 if(left_lane_safe){
+                    // turn left
+                    _lane = _lane-1;
+                    _state = PathPlanner::CHANGE_LANE;
+                    _change_lane_complete = false;
+                }
+            }else if(fastest_lane == 2){
+                if(right_lane_safe){
+                    // turn right
+                    _lane = _lane+1;
+                    _state = PathPlanner::CHANGE_LANE;
+                    _change_lane_complete = false;
+                }
+            }
+        }else if(_state == PathPlanner::CHANGE_LANE){
+            if(_change_lane_complete){
+                _state = PathPlanner::FOLLOW_IN_LANE;
+                _target_vel = 49.5;
+            }
+        }
+        //if(current_state != _state){
+        //    cout << "++++++++++++++++++++++++++++++" << endl;
+        //    cout << "current lane : " << current_lane << endl;
+        //    cout << "state == " << current_state << " ;    ";
+        //    cout << "next state == " << _state << endl;
+        //    cout << "slow vehicle infront : " << slow_vehicle_in_front << endl;
+        //    cout << "left lane safe : " << left_lane_safe << endl;
+        //    cout << "right lane safe : " << right_lane_safe << endl;
+        //    cout << "next lane : " << _lane << endl;
+        //    cout << "_change_lane_complete : " << _change_lane_complete << endl;
+
+        //    cout << "lane speed left : " << lane_speed[0] << endl;
+        //    cout << "lane speed current: " << lane_speed[1] << endl;
+        //    cout << "lane speed right: " << lane_speed[2] << endl;
+
+        //    cout<< "-----------------------------------------" << endl;
+        //}
+
+        // take actions based on state change
+
+        if(_target_vel - _ref_vel > 0.224){
+            //_ref_vel += .224;
+            _ref_vel += .448;
+        }else if(_ref_vel - _target_vel > 0.224){
+            //_ref_vel -= .224;
+            _ref_vel -= .448;
+        }
+        //if(too_close){
+        //    _ref_vel -= .224;
+        //}else if(_ref_vel < 49.5){
+        //    _ref_vel += .224;
+        //}
 
         vector<double> ptsx;
         vector<double> ptsy;

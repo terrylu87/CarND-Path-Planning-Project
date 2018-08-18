@@ -8,6 +8,14 @@
 class PathPlanner
 {
 public:
+
+   enum STATE
+   {
+      FOLLOW_IN_LANE,
+      PREPARE_LANE_CHANGE,
+      CHANGE_LANE
+   };
+
     void processMessage(std::string msg);
     void setMap(std::vector<double> map_waypoints_x,
                 std::vector<double> map_waypoints_y,
@@ -17,7 +25,7 @@ public:
     std::vector<double> next_x(){return _next_x_vals;}
     std::vector<double> next_y(){return _next_y_vals;}
 private:
-    int _state;
+    STATE _state;
     std::vector<double> _map_waypoints_x;
     std::vector<double> _map_waypoints_y;
     std::vector<double> _map_waypoints_s;
@@ -26,7 +34,9 @@ private:
     std::vector<double> _next_x_vals;
     std::vector<double> _next_y_vals;
     int _lane;
-    int _lane_change_wp;
     double _ref_vel;
+    double _target_vel;
+    int _target_lane;
+    bool _change_lane_complete = true;
 
 };
